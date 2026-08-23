@@ -27,7 +27,9 @@ HOME_T="$TMP/home"; mkdir -p "$HOME_T/.config/hypr"
 # PATH strict la stub-uri: pe host-ul real flatpak/gdm există în /usr/bin și ar masca testul 3
 # (cf. test/hypedora-preflight-host-test.sh); uneltele reale necesare primesc symlink-uri.
 for t in bash grep dirname mkdir touch cat find cp cmp date; do ln -s "$(command -v "$t")" "$BIN/$t"; done
-runboot() { ( export PATH="$BIN" HOME="$HOME_T" HYPEDORA_BOOT_DIR="$CO" HYPEDORA_OS_RELEASE="$TMP/os-release" HYPEDORA_ARCH=x86_64 HYPEDORA_UID=1000 "$@"; bash "$CO/hypedora/boot.sh" ) >"$TMP/out" 2>&1; echo $?; }
+# XDG_CONFIG_HOME: post-install.sh scrie în ${XDG_CONFIG_HOME:-$HOME/.config}; fără el,
+# testul ar scrie în ~/.config-ul real al dezvoltatorului, nu în HOME-ul temporar.
+runboot() { ( export PATH="$BIN" HOME="$HOME_T" XDG_CONFIG_HOME="$HOME_T/.config" HYPEDORA_BOOT_DIR="$CO" HYPEDORA_OS_RELEASE="$TMP/os-release" HYPEDORA_ARCH=x86_64 HYPEDORA_UID=1000 "$@"; bash "$CO/hypedora/boot.sh" ) >"$TMP/out" 2>&1; echo $?; }
 
 # 1) pe bare metal: ordinea apelurilor, fără tweak de VM
 : > "$LOG"; rc=$(runboot VIRT_RC=1)
