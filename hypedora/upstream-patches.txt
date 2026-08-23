@@ -1,9 +1,14 @@
 # Fișiere upstream pe care hypedora le poartă modificate = PR-uri către
 # AndrewGaspar/omedora (omedora-4). O cale pe linie. Se scot când PR-ul e merge-uit
 # și am făcut rebase. Testul: test/hypedora-additive-test.sh
+# PR AndrewGaspar/omedora#2 — fix(install): apply-system rename + gate snapper.sh
+omedora/install/system.sh
+install/config/snapper.sh
+# PR AndrewGaspar/omedora#3 — test(fedora): L4 session containers unconfined by SELinux
+omedora/test/fedora/headless/run-tests.sh
+omedora/test/fedora/build-session.sh
+omedora/test/fedora/run-session.sh
+# PR AndrewGaspar/omedora#4 (draft) — test(fedora): L4-VM pipeline port + configurable graphics
 omedora/test/fedora/vm/run-vm-test.sh
 omedora/test/fedora/vm/in-vm/assert-install.sh
 omedora/test/fedora/vm/in-vm/run-suite-in-session.sh
-omedora/test/fedora/headless/run-tests.sh
-omedora/install/system.sh
-install/config/snapper.sh
