@@ -19,6 +19,8 @@ Apoi reboot → alege sesiunea **Omedora** în GDM.
 - `hypedora/boot.sh` — one-liner: preflight → installer-ul omedora-4 nemodificat → post-install
 - `hypedora/post-install.sh` — overlay + tweaks de VM (doar sub `systemd-detect-virt`)
 - `hypedora/vm/` — preflight host + rulare L4 (nested + VM KVM cu 3D) pe un laptop Fedora
+- `hypedora/overlay/` — fișiere de user copiate în `~/.config/` de post-install
+  (vezi `hypedora/docs/overlay.md`; azi: toate background-urile pe orice temă)
 - `hypedora/docs/` — cum ținem pasul cu omedora-4, riscuri cu declanșator
 - `test/hypedora-*-test.sh` — testele noastre L1 (TAP, `bash test/hypedora-additive-test.sh`)
 

@@ -1,0 +1,108 @@
+#!/bin/bash
+# hypedora: toate background-urile, pe orice temă.
+#
+# Rulat de omarchy-theme-set prin `omarchy-hook theme-set <temă>` (bin/omarchy-hook),
+# cu numele temei ca argument. Umple ~/.config/omarchy/backgrounds/<temă>/ cu
+# background-urile TUTUROR temelor instalate — director pe care omarchy-theme-set,
+# omarchy-theme-bg-next și omarchy-theme-bg-switcher îl citesc deja alături de
+# backgrounds/ al temei curente. Strict aditiv: nu atinge niciun fișier Omarchy.
+#
+# De ce COPII (cp --reflink=auto) și nu symlink-uri: omarchy-theme-bg-set
+# stochează `realpath` al imaginii în ~/.local/state/omarchy/current/background,
+# iar omarchy-theme-bg-next caută exact acel șir printre căile găsite cu find.
+# Un symlink s-ar rezolva la /usr/share/omarchy/... , care nu e în listă, deci
+# indexul ar fi mereu -1 și „bg next" ar rămâne blocat pe prima imagine.
+# Pe btrfs (implicit pe Fedora) reflink înseamnă copiere fără cost de spațiu;
+# pe un fs fără CoW se copiază efectiv (~100 MB per temă vizitată).
+#
+# Fără argument, folosește tema curentă — util la prima instalare:
+#   bash ~/.config/omarchy/hooks/theme-set.d/30-all-backgrounds
+#
+# Env:
+#   OMARCHY_THEMES_DIR  directorul cu teme de sistem (implicit $OMARCHY_PATH/themes
+#                       sau /usr/share/omarchy/themes) — folosit și de teste.
+set -uo pipefail
+shopt -s nullglob
+
+# $HOME/.config, nu XDG_CONFIG_HOME: omarchy-theme-set, omarchy-theme-bg-next
+# și omarchy-theme-bg-switcher citesc toate „$HOME/.config/omarchy/backgrounds".
+CFG="$HOME/.config"
+STATE_DIR="$HOME/.local/state/omarchy/current" # ca în omarchy-theme-set (nu XDG_STATE_HOME)
+SYSTEM_THEMES_DIR="${OMARCHY_THEMES_DIR:-${OMARCHY_PATH:-/usr/share/omarchy}/themes}"
+USER_THEMES_DIR="$CFG/omarchy/themes"
+FOREIGN_PREFIX="zz-"
+IMAGE_TESTS=(-iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif' -o -iname '*.bmp' -o -iname '*.webp')
+
+theme_name=${1:-}
+[[ -n $theme_name ]] || theme_name=$(cat "$STATE_DIR/theme.name" 2>/dev/null)
+# Aceeași normalizare ca în omarchy-theme-set, ca să meargă și cu „Tokyo Night".
+theme_name=$(printf '%s' "$theme_name" | sed -E 's/<[^>]+>//g' | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
+[[ -n $theme_name ]] || exit 0
+
+DEST="$CFG/omarchy/backgrounds/$theme_name"
+# Evidența fișierelor puse de noi: tot ce nu e aici e al userului și nu se atinge.
+# Nu are extensie de imagine, deci Omarchy îl ignoră când listează background-uri.
+MANIFEST="$DEST/.hypedora-all-backgrounds"
+
+mkdir -p "$DEST" || exit 0
+
+declare -A WANTED=()  # nume în DEST -> fișierul sursă
+declare -A OURS=()    # nume puse de noi la rulările anterioare
+
+while IFS= read -r name; do
+  [[ -n $name ]] && OURS[$name]=1
+done < <(cat "$MANIFEST" 2>/dev/null)
+
+collect_backgrounds() {
+  local dir=$1 prefix=$2 file
+
+  [[ -d $dir ]] || return 0
+
+  while IFS= read -r -d '' file; do
+    WANTED["$prefix${file##*/}"]=$file
+  done < <(find -L "$dir" -maxdepth 1 -type f \( "${IMAGE_TESTS[@]}" \) -print0 2>/dev/null)
+}
+
+for themes_dir in "$SYSTEM_THEMES_DIR" "$USER_THEMES_DIR"; do
+  [[ -d $themes_dir ]] || continue
+
+  # Background-urile temei curente, cu numele lor real. Sortarea din
+  # choose_theme_background (omarchy-theme-set) e globală peste ambele
+  # directoare, iar $DEST vine înaintea directorului temei — fără copiile
+  # astea, orice schimbare de temă ar alege un background străin. Selectorul
+  # deduplică după numele fișierului, deci în UI apar o singură dată.
+  collect_backgrounds "$themes_dir/$theme_name/backgrounds" ""
+
+  # Background-urile celorlalte teme, prefixate cu tema sursă: nume unice
+  # (mai multe teme au un „omarchy.png") și etichete lizibile în switcher.
+  for theme_dir in "$themes_dir"/*/; do
+    theme_dir=${theme_dir%/}
+    [[ ${theme_dir##*/} == "$theme_name" ]] && continue
+    collect_backgrounds "$theme_dir/backgrounds" "$FOREIGN_PREFIX${theme_dir##*/}-"
+  done
+done
+
+# Adaugă/actualizează. Un fișier cu același nume care nu e al nostru rămâne al userului.
+for name in "${!WANTED[@]}"; do
+  dst="$DEST/$name"
+  [[ -e $dst && -z ${OURS[$name]+x} ]] && continue
+  cp --reflink=auto --preserve=timestamps -u -- "${WANTED[$name]}" "$dst" 2>/dev/null
+done
+
+# Scoate ce am pus la rulările anterioare și nu mai există (temă dezinstalată,
+# background redenumit). Niciodată fișiere pe care nu le-am creat noi.
+current_background=$(readlink -f "$STATE_DIR/background" 2>/dev/null)
+for name in "${!OURS[@]}"; do
+  [[ -n ${WANTED[$name]+x} ]] && continue
+  [[ $DEST/$name == "$current_background" ]] && continue
+  rm -f -- "$DEST/$name"
+done
+
+# Rescris doar când se schimbă: o rulare fără noutăți nu atinge nimic în director.
+new_manifest=""
+((${#WANTED[@]})) && new_manifest=$(printf '%s\n' "${!WANTED[@]}" | sort)
+if [[ $new_manifest != "$(cat "$MANIFEST" 2>/dev/null)" ]]; then
+  { [[ -n $new_manifest ]] && printf '%s\n' "$new_manifest"; } >"$MANIFEST"
+fi
+
+exit 0
