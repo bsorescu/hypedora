@@ -1,20 +1,31 @@
 #!/bin/bash
 # hypedora post-install: idempotent. (1) overlay-ul personal din hypedora/overlay/
-# (copiat peste ~/.config, cu backup .pre-hypedora); (2) sub VM, cursor software —
+# (copiat în ~/.config sau ~/.local, cu backup .pre-hypedora); (2) sub VM, cursor software —
 # același tweak pe care omedora îl face pentru nouveau (install/user/hardware/fix-nouveau-cursor.sh),
 # pentru că virtio-gpu/virgl nu afișează de regulă planul de cursor hardware.
 set -euo pipefail
 HERE=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 CFG="${XDG_CONFIG_HOME:-$HOME/.config}"
 
+# Destinația unui fișier din overlay, după primul segment al căii relative:
+# `.local/…` e rootat în $HOME (cu XDG_DATA_HOME pentru `.local/share`), restul
+# rămâne rootat în $XDG_CONFIG_HOME — comportamentul de dinainte, neschimbat.
+overlay_dest() {
+  case $1 in
+  .local/share/*) printf '%s/%s' "${XDG_DATA_HOME:-$HOME/.local/share}" "${1#.local/share/}" ;;
+  .local/*) printf '%s/%s' "$HOME/.local" "${1#.local/}" ;;
+  *) printf '%s/%s' "$CFG" "$1" ;;
+  esac
+}
+
 # (1) overlay
 if [[ -d "$HERE/overlay" ]] && find "$HERE/overlay" -type f | grep -q .; then
   while IFS= read -r -d '' f; do
-    rel="${f#"$HERE/overlay/"}"; dst="$CFG/$rel"
+    rel="${f#"$HERE/overlay/"}"; dst=$(overlay_dest "$rel")
     mkdir -p "$(dirname "$dst")"
     if [[ -f "$dst" ]] && ! cmp -s "$f" "$dst"; then cp -a "$dst" "$dst.pre-hypedora-$(date +%s)"; fi
     cp -a "$f" "$dst"
-    echo "overlay: $rel"
+    echo "overlay: $rel -> $dst"
   done < <(find "$HERE/overlay" -type f -print0)
 fi
 

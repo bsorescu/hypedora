@@ -1,0 +1,28 @@
+#!/bin/bash
+# Wrapper pentru Brave (flatpak): omarchy-launch-browser extrage doar primul
+# cuvânt din Exec=, deci are nevoie de un executabil unic, nu de „flatpak run …".
+#
+# Guard `--help` — de ce există:
+# omarchy-launch-browser sondează browserul implicit cu `--help` ca să detecteze
+# Firefox (`$browser_exec --help 2>/dev/null | grep -q MOZ_LOG`). Un browser
+# Chromium nu tipărește help: face `execlp("man", "man", "brave", NULL)`. În
+# sandbox-ul flatpak PATH e /app/bin:/usr/bin și `man` nu există → execlp dă
+# ENOENT → Chromium moare în PLOG(FATAL) (chrome/app/chrome_main_delegate.cc)
+# → base::ImmediateCrash() → int3 → SIGTRAP → core dump la FIECARE lansare de
+# browser (stderr-ul sondei e /dev/null, deci simptomul vizibil e doar dumpul).
+#
+# Răspundem noi sondei, fără să pornim browserul: ieșire 0 și nimic pe stdout.
+# Fără MOZ_LOG, launcher-ul cade pe ramura `--incognito` — flag-ul corect pentru
+# Brave, adică exact comportamentul dinainte, minus crash-ul.
+set -euo pipefail
+
+for arg; do
+  case $arg in
+  --help | -h)
+    echo "brave: --help nu e suportat prin acest wrapper (flatpak com.brave.Browser)." >&2
+    exit 0
+    ;;
+  esac
+done
+
+exec /usr/bin/flatpak run --branch=stable --command=brave com.brave.Browser "$@"
