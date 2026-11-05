@@ -32,6 +32,3 @@ Decizii și research: vault Obsidian `hypedora/` (ADR-001).
 M1 (2026-08-23): comanda unică validată într-un VM KVM Fedora 44 (virgl, 1920×1080):
 `curl | bash` → `RC=0`, reboot → sesiunea Omedora + shell-ul Quickshell pornesc
 (bară, meniu, teme; 10 min idle fără crash); vezi vault `hypedora/sessions/`.
-Setup-ul de sistem rulează din checkout (`OMEDORA_SETUP_FROM_REPO=1`) până când
-COPR-ul `agaspar/omedora-4` publică un build cu fix-urile purtate de fork
-(`hypedora/upstream-patches.txt`).
