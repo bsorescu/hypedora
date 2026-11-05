@@ -1,5 +1,5 @@
 #!/bin/bash
-# L1 (hypedora, PR upstream): system.sh apelează omarchy-apply-system — numele nou
+# L1 (hypedora, gardă de regresie; fix-ul e upstream de la beta.3/beta.5): system.sh apelează omarchy-apply-system — numele nou
 # de după „Move install-time plumbing out of the setup namespace" (536fcd5c);
 # vechiul omarchy-setup-system nu mai există nici în RPM, nici în bin/ → exit 127.
 set -euo pipefail
@@ -17,13 +17,9 @@ assert_output_lacks   "system.sh nu mai apelează omarchy-setup-system" "$src" '
   && pass "bin/omarchy-apply-system există în repo (seam-ul FROM_REPO funcționează)" \
   || fail "bin/omarchy-apply-system există în repo (seam-ul FROM_REPO funcționează)"
 
-grep -qxF 'omedora/install/system.sh' "$ROOT/hypedora/upstream-patches.txt" \
-  && pass "system.sh e în upstream-patches.txt" || fail "system.sh e în upstream-patches.txt"
 
 # snapper e mapat source="skip" pe Fedora (fedora.toml) dar scriptul nu era gated →
 # `snapper: command not found` (127) omora tot apply-ul pe un Workstation stock.
 snap=$(cat "$ROOT/install/config/snapper.sh")
 assert_output_contains "snapper.sh are gate-ul de Fedora" "$snap" 'omarchy-distro'
 bash -n "$ROOT/install/config/snapper.sh" && pass "bash -n snapper.sh" || fail "bash -n snapper.sh"
-grep -qxF 'install/config/snapper.sh' "$ROOT/hypedora/upstream-patches.txt" \
-  && pass "snapper.sh e în upstream-patches.txt" || fail "snapper.sh e în upstream-patches.txt"
