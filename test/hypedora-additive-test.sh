@@ -15,7 +15,10 @@ git -C "$ROOT" rev-parse -q --verify "$BASE" >/dev/null || fail "ref de bază $B
 pass "ref de bază $BASE există"
 
 # Fișiere modificate/șterse (nu adăugate) față de bază, în afara zonelor noastre.
-mapfile -t changed < <(git -C "$ROOT" diff --name-only --diff-filter=MDRT "$BASE" -- . \
+# Comparăm cu punctul de ramificare, nu cu vârful upstream: commit-urile apărute în upstream
+# după rebase nu sunt modificări de-ale noastre.
+FORK_POINT=$(git -C "$ROOT" merge-base HEAD "$BASE")
+mapfile -t changed < <(git -C "$ROOT" diff --name-only --diff-filter=MDRT "$FORK_POINT" -- . \
   ':(exclude)hypedora/' ':(exclude)test/hypedora-*' )
 bad=()
 for f in "${changed[@]}"; do
